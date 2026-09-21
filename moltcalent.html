@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Molt Calent</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --accent: #f43f5e;
+    --text: #f8fafc;
+    --border: #334155;
+    --selected: #10b981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .hidden { display: none !important; }
+  .screen { width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+  h1 { color: var(--accent); font-size: 2rem; text-align: center; margin-top: 10px; }
+  p.subtitle { color: #94a3b8; font-size: 0.95rem; text-align: center; margin-bottom: 8px; }
+
+  /* Grid de Avatares con Fotos */
+  .avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    background: var(--card);
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  .avatar-card {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .avatar-card.selected {
+    border-color: var(--selected);
+    background: rgba(16, 185, 129, 0.15);
+  }
+  .player-photo { 
+    width: 60px; 
+    height: 60px; 
+    border-radius: 50%; 
+    object-fit: cover;
+    border: 2px solid var(--border);
+  }
+  .avatar-card.selected .player-photo { border-color: var(--selected); }
+  .avatar-card .name { font-size: 0.85rem; font-weight: bold; color: #cbd5e1; }
+
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    width: 100%;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; }
+
+  /* Tablero Ampliado */
+  .game-header { width: 100%; display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 12px; border-radius: 12px; }
+  .turn-banner { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1.2rem; }
+  .turn-photo { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+  
+  #board-container { width: 100%; background: var(--card); border-radius: 12px; padding: 10px; height: 60vh; overflow-y: auto; }
+  .board-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; align-items: center; position: relative; min-height: 90px; justify-content: flex-start; }
+  .tile.highlight { border: 2px solid #38bdf8; box-shadow: 0 0 8px #38bdf8; }
+  .tile-icon { font-size: 1.6rem; margin-top: 8px; }
+  .tile-name { font-size: 0.7rem; font-weight: bold; text-align: center; margin-top: 6px; line-height: 1.2; }
+  .tile-num { position: absolute; top: 4px; left: 4px; font-size: 0.6rem; color: #64748b; font-weight: bold; }
+  .tokens { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; width: 100%; margin-top: auto; min-height: 20px; }
+  .mini-photo { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid white; }
+
+  /* Dado y Modal */
+  .dice-box { background: var(--card); padding: 16px; border-radius: 12px; width: 100%; display: flex; gap: 16px; align-items: center; }
+  .dice { font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--bg); border-radius: 12px; border: 2px solid var(--border); }
+  
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+  .modal-box { background: var(--card); border: 3px solid var(--accent); border-radius: 16px; padding: 24px; text-align: center; width: 100%; max-width: 350px; }
+  .modal-box h2 { color: #38bdf8; margin-bottom: 12px; font-size: 1.5rem; }
+  .modal-box p { font-size: 1.1rem; margin-bottom: 24px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+  <!-- PANTALLA DE SELECCIÓN -->
+  <div id="setup-screen" class="screen">
+    <h1>🍻 Molt Calent</h1>
+    <p class="subtitle">Selecciona a los que van a jugar hoy</p>
+
+    <div class="avatar-grid">
+      <!-- ===== NOMBRES DE TUS AMIGOS AQUÍ ===== -->
+      <!-- Cambia 'Jugador 1' por el nombre real. Asegúrate de tener foto1.jpg en la carpeta -->
+      <div class="avatar-card" id="card-1" onclick="togglePlayer(1, 'Santi', 'foto1.jpg')">
+        <img src="foto1.jpg" alt="" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Santi</div>
+      </div>
+      <div class="avatar-card" id="card-2" onclick="togglePlayer(2, 'Mariona', 'foto2.jpg')">
+        <img src="foto2.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Mariona</div>
+      </div>
+      <div class="avatar-card" id="card-3" onclick="togglePlayer(3, 'Iraide', 'foto3.jpg')">
+        <img src="foto3.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Iraide</div>
+      </div>
+      <div class="avatar-card" id="card-4" onclick="togglePlayer(4, 'Marti', 'foto4.jpg')">
+        <img src="foto4.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Marti</div>
+      </div>
+      <div class="avatar-card" id="card-5" onclick="togglePlayer(5, 'Anna', 'foto5.jpg')">
+        <img src="foto5.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Anna</div>
+      </div>
+      <div class="avatar-card" id="card-6" onclick="togglePlayer(6, 'Alex', 'foto6.jpg')">
+        <img src="foto6.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Alex</div>
+      </div>
+      <div class="avatar-card" id="card-7" onclick="togglePlayer(7, 'Pilar', 'foto7.jpg')">
+        <img src="foto7.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Pilar</div>
+      </div>
+      <div class="avatar-card" id="card-8" onclick="togglePlayer(8, 'Marc', 'foto8.jpg')">
+        <img src="foto8.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Marc</div>
+      </div>
+      <div class="avatar-card" id="card-9" onclick="togglePlayer(9, 'La Zule', 'foto9.jpg')">
+        <img src="foto9.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">La Zule</div>
+      </div>
+      <div class="avatar-card" id="card-10" onclick="togglePlayer(10, 'Merion', 'foto10.jpg')">
+        <img src="foto10.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Merion</div>
+      </div>
+      <div class="avatar-card" id="card-11" onclick="togglePlayer(11, 'El Tangas', 'foto11.jpg')">
+        <img src="foto11.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">El Tangas</div>
+      </div>
+      <div class="avatar-card" id="card-12" onclick="togglePlayer(12, 'Eli', 'foto12.jpg')">
+        <img src="foto12.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Eli</div>
+      </div>
+      <div class="avatar-card" id="card-13" onclick="togglePlayer(13, 'Teresa', 'foto13.jpg')">
+        <img src="foto13.jpg" class="player-photo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'">
+        <div class="name">Teresa</div>
+      </div>
+    </div>
+
+    <p id="player-count">Jugadores: 0</p>
+    <button id="start-btn" onclick="startGame()" disabled>Empezar Partida</button>
+  </div>
+
+  <!-- PANTALLA DE JUEGO -->
+  <div id="game-screen" class="screen hidden">
+    <div class="game-header">
+      <div class="turn-banner">
+        <img id="turn-photo" src="" class="turn-photo" alt=""> <span id="turn-name">Turno</span>
+      </div>
+      <div style="font-size: 0.8rem; background: #475569; padding: 8px 12px; border-radius: 8px; cursor: pointer;" onclick="location.reload()">Reiniciar</div>
+    </div>
+
+    <div id="board-container">
+      <div class="board-grid" id="board-grid"></div>
+    </div>
+
+    <div class="dice-box">
+      <div class="dice" id="dice-display">🎲</div>
+      <button onclick="rollDice()" id="roll-btn">Tirar Dado</button>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h2 id="modal-title">Título</h2>
+      <p id="modal-desc">Descripción</p>
+      <button onclick="closeModal()">¡A tope!</button>
+    </div>
+  </div>
+
+<script>
+  var selectedPlayers = {};
+  var activePlayers = [];
+  var currentTurn = 0;
+
+  /* 40 CASILLAS CON TEMÁTICAS VARIADAS */
+  var TILES = [
+    { name: "Salida", icon: "🏁", action: function() { return {t: "¡Arrancamos!", d: "Casilla de salida. ¡Suerte!"}; } },
+    { name: "Bebe 2", icon: "🍺", action: function(p) { return {t: "Sediento", d: p.name + " bebe 2 tragos."}; } },
+    { name: "Manda 2", icon: "👉", action: function(p) { return {t: "Reparte", d: p.name + " manda 2 tragos a quien quiera."}; } },
+    { name: "Chicas", icon: "💃", action: function() { return {t: "Noche de chicas", d: "¡Todas las chicas beben 1 trago!"}; } },
+    { name: "Chicos", icon: "🕺", action: function() { return {t: "Noche de chicos", d: "¡Todos los chicos beben 1 trago!"}; } },
+    { name: "Yo Nunca", icon: "🤫", action: function(p) { return {t: "Yo Nunca", d: p.name + " dice 'Yo nunca...'. Quien lo haya hecho bebe 2 tragos."}; } },
+    { name: "Bug de Código", icon: "🐛", action: function(p) { p.pos = Math.max(0, p.pos - 3); return {t: "Error de compilación", d: "¡Bug crítico! " + p.name + " retrocede 3 casillas y bebe 2."}; } },
+    { name: "Cascada", icon: "🌊", action: function(p) { return {t: "La Cascada", d: p.name + " empieza a beber y el resto le sigue en círculo. Nadie para hasta que pare el anterior."}; } },
+    { name: "Skål!", icon: "🇸🇪", action: function() { return {t: "Skål!", d: "¡Brindis sueco! Todo el mundo alza la copa y bebe 2 tragos."}; } },
+    { name: "El Pulgar", icon: "👍", action: function(p) { return {t: "Maestro del Pulgar", d: p.name + " es el dueño del pulgar. Cuando lo ponga en la mesa, el último en copiarle bebe 2."}; } },
+    { name: "Manda 3", icon: "🎯", action: function(p) { return {t: "Francotirador", d: p.name + " manda 3 tragos (pueden ser repartidos)."}; } },
+    { name: "Partido", icon: "⚽", action: function(p) { return {t: "Penalti", d: p.name + " elige a alguien para un duelo a Piedra, Papel, Tijera. El que pierda bebe 3."}; } },
+    { name: "Cultura", icon: "🧠", action: function(p) { return {t: "Cultura Chupística", d: p.name + " elige un tema. En círculo decís uno sin repetir. Quien falle bebe 2."}; } },
+    { name: "Bebe 3", icon: "🍻", action: function(p) { return {t: "Toca beber", d: p.name + " bebe 3 tragos."}; } },
+    { name: "Regla", icon: "📜", action: function(p) { return {t: "El Dictador", d: p.name + " pone una norma (ej: beber con la izquierda). El que falle bebe 2."}; } },
+    { name: "Oktoberfest", icon: "🥨", action: function(p) { return {t: "Oktoberfest", d: p.name + " manda 2 tragos. Si el que los recibe está bebiendo cerveza, son 4."}; } },
+    { name: "Acento", icon: "🗣️", action: function(p) { return {t: "Acento Extranjero", d: p.name + " debe hablar con un acento inventado hasta su próximo turno o bebe 3."}; } },
+    { name: "Compañeros", icon: "👯", action: function(p) { return {t: "Compañero de Bebida", d: p.name + " elige a alguien. Cada vez que " + p.name + " beba, el otro también."}; } },
+    { name: "Déficit Calórico", icon: "🥗", action: function(p) { return {t: "Déficit Calórico", d: p.name + " se cuida. Te salvas de beber este turno y puedes mandar 2 tragos extra de proteína (o lo que tengas en la copa)."}; } },
+    { name: "Shot!", icon: "🥃", action: function(p) { return {t: "¡Chupito!", d: "¡" + p.name + " se toma un chupito! (O 4 tragos largos si no hay)."}; } },
+    { name: "Manda 4", icon: "🔥", action: function(p) { return {t: "Peligro", d: p.name + " manda 4 tragos."}; } },
+    { name: "Todos", icon: "🎉", action: function() { return {t: "¡Fiesta!", d: "Absolutamente todos beben 1 trago."}; } },
+    { name: "Verdad o Reto", icon: "🎭", action: function(p) { return {t: "Verdad o Reto", d: p.name + " elige Verdad o Reto. El grupo decide. Si no lo hace, bebe 4."}; } },
+    { name: "Perreo", icon: "🎵", action: function(p) { return {t: "Dale Reggaeton", d: p.name + " tiene que cantar o bailar un tema de trap/reggaeton durante 10 segundos. Si no quiere, bebe 4."}; } },
+    { name: "Error 404", icon: "🚫", action: function(p) { return {t: "Conexión Perdida", d: p.name + " pierde su próximo turno y bebe 2."}; } },
+    { name: "Manda 2", icon: "👉", action: function(p) { return {t: "Reparte 2", d: p.name + " manda 2 tragos."}; } },
+    { name: "Mayor bebe", icon: "👴", action: function() { return {t: "Respeto a los mayores", d: "El jugador más mayor de la partida bebe 2 tragos."}; } },
+    { name: "Menor bebe", icon: "👶", action: function() { return {t: "Novato", d: "El jugador más joven de la partida bebe 2 tragos."}; } },
+    { name: "Intercambio", icon: "🔄", action: function(p) { return {t: "Giro Inesperado", d: p.name + " intercambia su copa con la persona a su derecha durante 1 ronda."}; } },
+    { name: "Ruleta Rusa", icon: "🎲", action: function(p) { return {t: "Ruleta Rusa", d: p.name + " tira el dado mentalmente. Si sacas impar bebes 3, si sacas par mandas 3 (tira el dado de la app para decidir)."}; } },
+    { name: "Tarjeta Amarilla", icon: "🟨", action: function(p) { return {t: "Falta táctica", d: "Tarjeta amarilla para " + p.name + ". Bebes 2 tragos."}; } },
+    { name: "Manda 5", icon: "💀", action: function(p) { return {t: "El Verdugo", d: p.name + " manda 5 tragos letales a repartir como quiera."}; } },
+    { name: "Foto Incómoda", icon: "📸", action: function(p) { return {t: "Paparazzi", d: p.name + " enseña la última foto o vídeo de su galería. Si no quiere, bebe 3."}; } },
+    { name: "Silencio", icon: "🤐", action: function(p) { return {t: "Voto de Silencio", d: p.name + " no puede hablar hasta su próximo turno. Por cada palabra que diga, bebe 1 trago."}; } },
+    { name: "Historia", icon: "📖", action: function(p) { return {t: "Había una vez...", d: p.name + " dice una palabra. El siguiente repite y añade otra, y así sucesivamente. Quien se equivoque bebe 3."}; } },
+    { name: "Bebe 4", icon: "🍻", action: function(p) { return {t: "Sed extrema", d: p.name + " bebe 4 tragos."}; } },
+    { name: "Sin manos", icon: "🦖", action: function(p) { return {t: "T-Rex", d: p.name + " debe beber su próximo trago sin usar las manos (que le ayude alguien o lo coja con la boca)."}; } },
+    { name: "Cascada Invertida", icon: "🌪️", action: function(p) { return {t: "Cascada Inversa", d: p.name + " empieza a beber y el resto le sigue, pero hacia la izquierda (en contra de las agujas del reloj)."}; } },
+    { name: "Sprint Final", icon: "🏃", action: function(p) { p.pos = Math.max(0, p.pos - 5); return {t: "Pájaras en el sprint", d: "¡Te has cansado! " + p.name + " retrocede 5 casillas."}; } },
+    { name: "Meta", icon: "🏆", action: function(p) { return {t: "¡Victoria Absoluta!", d: "¡" + p.name + " ha destrozado el tablero! Todos los demás se acaban su copa."}; } }
+  ];
+
+  // SELECCIONAR JUGADORES
+  function togglePlayer(id, name, photoPath) {
+    var card = document.getElementById('card-' + id);
+    if (selectedPlayers[id]) {
+      delete selectedPlayers[id];
+      card.className = "avatar-card";
+    } else {
+      selectedPlayers[id] = { id: id, name: name, photo: photoPath, pos: 0 };
+      card.className = "avatar-card selected";
+    }
+    
+    var count = Object.keys(selectedPlayers).length;
+    document.getElementById('player-count').innerText = "Jugadores: " + count;
+    document.getElementById('start-btn').disabled = (count < 2);
+  }
+
+  // INICIAR JUEGO
+  function startGame() {
+    activePlayers = Object.values(selectedPlayers);
+    document.getElementById('setup-screen').className = "screen hidden";
+    document.getElementById('game-screen').className = "screen";
+    
+    var boardHtml = "";
+    for (var i = 0; i < TILES.length; i++) {
+      boardHtml += "<div class='tile' id='tile-"+i+"'>" +
+                   "<span class='tile-num'>"+(i+1)+"</span>" +
+                   "<div class='tile-icon'>" + TILES[i].icon + "</div>" +
+                   "<div class='tile-name'>" + TILES[i].name + "</div>" +
+                   "<div class='tokens' id='tokens-"+i+"'></div>" +
+                   "</div>";
+    }
+    document.getElementById('board-grid').innerHTML = boardHtml;
+    updateUI();
+  }
+
+  // ACTUALIZAR POSICIONES Y TURNO
+  function updateUI() {
+    var p = activePlayers[currentTurn];
+    
+    var turnPhotoEl = document.getElementById('turn-photo');
+    turnPhotoEl.src = p.photo;
+    // Fallback por si la foto falla
+    turnPhotoEl.onerror = function() { this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23f43f5e\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'; };
+    
+    document.getElementById('turn-name').innerText = p.name;
+
+    for (var i = 0; i < TILES.length; i++) {
+      document.getElementById('tokens-'+i).innerHTML = "";
+      document.getElementById('tile-'+i).className = "tile";
+    }
+
+    for (var j = 0; j < activePlayers.length; j++) {
+      var player = activePlayers[j];
+      var img = document.createElement("img");
+      img.className = "mini-photo";
+      img.src = player.photo;
+      img.onerror = function() { this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23ffffff\'%3E%3Ccircle cx=\'12\' cy=\'12\' r=\'12\'/%3E%3C/svg%3E'; };
+      document.getElementById('tokens-' + player.pos).appendChild(img);
+    }
+    document.getElementById('tile-' + p.pos).className = "tile highlight";
+  }
+
+  // TIRAR DADO
+  function rollDice() {
+    document.getElementById('roll-btn').disabled = true;
+    var display = document.getElementById('dice-display');
+    var rolls = 0;
+    
+    var interval = setInterval(function() {
+      display.innerText = Math.floor(Math.random() * 6) + 1;
+      rolls++;
+      if (rolls > 8) {
+        clearInterval(interval);
+        var result = Math.floor(Math.random() * 6) + 1;
+        display.innerText = result;
+        
+        var p = activePlayers[currentTurn];
+        p.pos = p.pos + result;
+        if (p.pos >= TILES.length - 1) p.pos = TILES.length - 1;
+        
+        updateUI();
+        document.getElementById('tile-' + p.pos).scrollIntoView({behavior: 'smooth', block: 'center'});
+        
+        setTimeout(function() {
+          var actionData = TILES[p.pos].action(p);
+          document.getElementById('modal-title').innerText = actionData.t;
+          document.getElementById('modal-desc').innerText = actionData.d;
+          document.getElementById('modal').className = "modal-overlay";
+        }, 450);
+      }
+    }, 60);
+  }
+
+  // CERRAR MODAL
+  function closeModal() {
+    document.getElementById('modal').className = "modal-overlay hidden";
+    var p = activePlayers[currentTurn];
+    
+    updateUI(); // Se actualiza por si la acción (ej: Bug) modificó la posición
+
+    if (p.pos >= TILES.length - 1) {
+      alert("🎉 ¡" + p.name + " HA GANADO LA PARTIDA!");
+      return;
+    }
+    currentTurn++;
+    if (currentTurn >= activePlayers.length) currentTurn = 0;
+    
+    document.getElementById('dice-display').innerText = "🎲";
+    document.getElementById('roll-btn').disabled = false;
+    updateUI();
+  }
+</script>
+</body>
+</html>
